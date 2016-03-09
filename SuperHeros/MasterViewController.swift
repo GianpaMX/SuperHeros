@@ -7,8 +7,8 @@
 //
 
 import Foundation
-
 import UIKit
+import RealmSwift
 
 class MasterViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
@@ -19,6 +19,7 @@ class MasterViewController: UIViewController, UITableViewDataSource, UITableView
     let session = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration())
     
     override func viewDidLoad() {
+        findRealmAvangerList()
         findAvangerList()
     }
     
@@ -59,26 +60,51 @@ class MasterViewController: UIViewController, UITableViewDataSource, UITableView
         navigationController?.pushViewController(detailViewController, animated: true)
     }
     
-    func findAvangerList() {
-//        superHeros.append(SuperHero(name: "Ironman", realName: "Tony Stark", image: "https://vignette2.wikia.nocookie.net/marvel-contestofchampions/images/f/fb/Iron_Man_preview.png/revision/latest?cb=20150830074258"))
-//        superHeros.append(SuperHero(name: "Hulk", realName: "Bruce Banner", image: "https://vignette2.wikia.nocookie.net/marvel-contestofchampions/images/5/57/Hulk_preview.png/revision/latest?cb=20150825224301"))
+    func findRealmAvangerList() {
+        superHeros.removeAll()
         
+        let realm = try! Realm()
+        
+        let realSuperHeroList : Results<RealmSuperHero> = realm.objects(RealmSuperHero)
+        for realmSuperHero in realSuperHeroList {
+            superHeros.append(SuperHero(realmSuperHero: realmSuperHero))
+        }
+        tableView.reloadData()
+    }
+    
+    func findAvangerList() {
         let url = NSURL(string: "http://codigoambar.herokuapp.com/avengers")
         let task = session.dataTaskWithURL(url!, completionHandler: { data, response, error -> Void in
             do {
                 let json = try NSJSONSerialization.JSONObjectWithData(data!, options: .AllowFragments)
                 if let jsonSuperHeros = json["avengers"] as? [[String:String]] {
+                    let realm = try! Realm()
+                    
+                    realm.beginWrite()
+                    let realSuperHeroList : Results<RealmSuperHero> = realm.objects(RealmSuperHero)
+                    for realmSuperHero in realSuperHeroList {
+                        realm.delete(realmSuperHero)
+                    }
+                    try! realm.commitWrite()
+                    
                     for jsonSuperHero in jsonSuperHeros {
                         if let superHeroObject = jsonSuperHero as? [String: String] {
                             if let name = superHeroObject["name"], let realName = superHeroObject["realName"], let image = superHeroObject["image"] {
-                                let superHero = SuperHero(name: name, realName: realName, image: image)
-                                self.superHeros.append(superHero)
+                                let realmSuperHero = RealmSuperHero()
+                                realmSuperHero.name = name
+                                realmSuperHero.realName = realName
+                                realmSuperHero.image = image
+                                
+                                let realm = try! Realm()
+                                try! realm.write({ () -> Void in
+                                    realm.add(realmSuperHero)
+                                })
                             }
                         }
                     }
                     
                     dispatch_async(dispatch_get_main_queue(), {
-                        self.tableView.reloadData()
+                        self.findRealmAvangerList()
                     })
                 }
             } catch {

@@ -18,4 +18,10 @@ class SuperHero {
         self.realName = realName
         self.image = image
     }
+    
+    init(realmSuperHero : RealmSuperHero) {
+        self.name = realmSuperHero.name
+        self.realName = realmSuperHero.realName
+        self.image = realmSuperHero.image
+    }
 }
